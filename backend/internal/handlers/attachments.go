@@ -157,6 +157,93 @@ func (h *AttachmentHandler) List(w http.ResponseWriter, r *http.Request) {
 	utils.Success(w, http.StatusOK, attachments)
 }
 
+func (h *AttachmentHandler) Preview(w http.ResponseWriter, r *http.Request) {
+	filename := r.URL.Query().Get("file")
+	if filename == "" {
+		utils.Error(w, http.StatusBadRequest, "File parameter is required")
+		return
+	}
+
+	filePath := filepath.Join(h.cfg.UploadDir, filename)
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			utils.Error(w, http.StatusNotFound, "Preview file not found")
+			return
+		}
+		utils.Error(w, http.StatusInternalServerError, "Failed to read file for preview")
+		return
+	}
+
+	contentType := http.DetectContentType(data)
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	w.Write(data)
+}
+
+func (h *AttachmentHandler) BulkUpload(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetCurrentUser(r)
+	if claims == nil {
+		utils.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	ticketIDStr := chi.URLParam(r, "id")
+	ticketID, err := strconv.ParseInt(ticketIDStr, 10, 64)
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Invalid ticket ID")
+		return
+	}
+
+	err = r.ParseMultipartForm(100 * 1024 * 1024)
+	if err != nil {
+		utils.Error(w, http.StatusBadRequest, "Failed to parse upload form")
+		return
+	}
+
+	files := r.MultipartForm.File["files"]
+	if len(files) == 0 {
+		utils.Error(w, http.StatusBadRequest, "At least one file is required")
+		return
+	}
+
+	uploaded := 0
+	for _, header := range files {
+		file, err := header.Open()
+		if err != nil {
+			continue
+		}
+
+		destPath := filepath.Join(h.cfg.UploadDir, header.Filename)
+		dst, err := os.Create(destPath)
+		if err != nil {
+			file.Close()
+			continue
+		}
+
+		size, _ := io.Copy(dst, file)
+		file.Close()
+		dst.Close()
+
+		mimeType := header.Header.Get("Content-Type")
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+
+		now := time.Now()
+		_, _ = database.DB.Exec(`
+			INSERT INTO attachments (ticket_id, filename, file_path, file_size, mime_type, uploader_id, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, ticketID, header.Filename, header.Filename, size, mimeType, claims.UserID, now)
+
+		uploaded++
+	}
+
+	utils.Success(w, http.StatusCreated, map[string]interface{}{
+		"uploaded_count": uploaded,
+	}, "Files uploaded successfully")
+}
+
 func (h *AttachmentHandler) Download(w http.ResponseWriter, r *http.Request) {
 	attachmentIDStr := chi.URLParam(r, "attachmentId")
 	attachmentID, err := strconv.ParseInt(attachmentIDStr, 10, 64)

@@ -81,7 +81,9 @@ func main() {
 		// Ticket Attachments
 		r.Get("/api/tickets/{id}/attachments", attachmentHandler.List)
 		r.Post("/api/tickets/{id}/attachments", attachmentHandler.Upload)
+		r.Post("/api/tickets/{id}/attachments/bulk", attachmentHandler.BulkUpload)
 		r.Get("/api/tickets/{id}/attachments/{attachmentId}/download", attachmentHandler.Download)
+		r.Get("/api/attachments/preview", attachmentHandler.Preview)
 
 		// Assets API
 		r.Get("/api/assets", assetHandler.List)
