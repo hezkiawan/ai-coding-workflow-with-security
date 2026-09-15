@@ -41,7 +41,7 @@ func main() {
 	r.Use(rateLimiter.Limit)
 
 	// System Handler
-	systemHandler := handlers.NewSystemHandler(cfg)
+	systemHandler := handlers.NewSystemHandler()
 
 // Initialize Handlers
 	authHandler := handlers.NewAuthHandler(cfg)
@@ -50,9 +50,8 @@ func main() {
 	assetHandler := handlers.NewAssetHandler()
 	attachmentHandler := handlers.NewAttachmentHandler(cfg)
 	adminHandler := handlers.NewAdminHandler()
-	systemHandler := handlers.NewSystemHandler(cfg)
 	diagnosticsHandler := handlers.NewDiagnosticsHandler()
-	webhookHandler := handlers.NewWebhookHandler()
+	webhookHandler := handlers.NewWebhookHandler(cfg)
 
 	// Public Routes
 	r.Get("/api/health", systemHandler.HealthCheck)
