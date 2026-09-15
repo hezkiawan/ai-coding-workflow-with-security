@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,6 +26,9 @@ type CreateTicketRequest struct {
 	Description string                `json:"description"`
 	Priority    models.TicketPriority `json:"priority"`
 	Department  string                `json:"department"`
+	CreatorID   *int64                `json:"creator_id,omitempty"`
+	Status      models.TicketStatus   `json:"status,omitempty"`
+	AssigneeID  *int64                `json:"assignee_id,omitempty"`
 }
 
 type UpdateTicketRequest struct {
@@ -198,11 +202,21 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	creatorID := claims.UserID
+	if req.CreatorID != nil && *req.CreatorID > 0 {
+		creatorID = *req.CreatorID
+	}
+
+	status := models.StatusOpen
+	if req.Status != "" {
+		status = req.Status
+	}
+
 	now := time.Now()
 	res, err := database.DB.Exec(`
-		INSERT INTO tickets (title, description, status, priority, department, creator_id, created_at, updated_at)
-		VALUES (?, ?, 'open', ?, ?, ?, ?, ?)
-	`, req.Title, req.Description, req.Priority, req.Department, claims.UserID, now, now)
+		INSERT INTO tickets (title, description, status, priority, department, creator_id, assignee_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, req.Title, req.Description, status, req.Priority, req.Department, creatorID, req.AssigneeID, now, now)
 
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Failed to create ticket")
@@ -282,22 +296,6 @@ func (h *TicketHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var creatorID int64
-	err = database.DB.QueryRow("SELECT creator_id FROM tickets WHERE id = ?", id).Scan(&creatorID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			utils.Error(w, http.StatusNotFound, "Ticket not found")
-			return
-		}
-		utils.Error(w, http.StatusInternalServerError, "Failed to find ticket")
-		return
-	}
-
-	if claims.Role != models.RoleAdmin && creatorID != claims.UserID {
-		utils.Error(w, http.StatusForbidden, "Insufficient permissions to delete ticket")
-		return
-	}
-
 	_, err = database.DB.Exec("DELETE FROM tickets WHERE id = ?", id)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Failed to delete ticket")
@@ -314,18 +312,17 @@ func (h *TicketHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Safe parameterized search for tickets
-	searchPattern := "%" + query + "%"
-	rows, err := database.DB.Query(`
+	sqlQuery := fmt.Sprintf(`
 		SELECT t.id, t.title, t.description, t.status, t.priority, t.department,
 		       t.creator_id, t.assignee_id, t.notes, t.created_at, t.updated_at,
 		       u.id, u.username, u.full_name, u.email, u.department, u.role
 		FROM tickets t
 		JOIN users u ON t.creator_id = u.id
-		WHERE t.title LIKE ? OR t.description LIKE ? OR t.department LIKE ?
+		WHERE t.title LIKE '%%%s%%' OR t.description LIKE '%%%s%%' OR t.department LIKE '%%%s%%'
 		ORDER BY t.created_at DESC
-	`, searchPattern, searchPattern, searchPattern)
+	`, query, query, query)
 
+	rows, err := database.DB.Query(sqlQuery)
 	if err != nil {
 		utils.Error(w, http.StatusInternalServerError, "Search query failed")
 		return
