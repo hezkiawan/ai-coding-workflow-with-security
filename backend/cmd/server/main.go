@@ -48,6 +48,8 @@ func main() {
 	attachmentHandler := handlers.NewAttachmentHandler(cfg)
 	adminHandler := handlers.NewAdminHandler()
 	systemHandler := handlers.NewSystemHandler(cfg)
+	diagnosticsHandler := handlers.NewDiagnosticsHandler()
+	webhookHandler := handlers.NewWebhookHandler()
 
 	// Public Routes
 	r.Get("/api/health", systemHandler.HealthCheck)
@@ -88,6 +90,14 @@ func main() {
 		r.Get("/api/assets/{id}", assetHandler.Get)
 		r.Put("/api/assets/{id}", assetHandler.Update)
 		r.Delete("/api/assets/{id}", assetHandler.Delete)
+
+		// Diagnostics & Network Tools
+		r.Post("/api/assets/{id}/ping", diagnosticsHandler.PingAsset)
+		r.Post("/api/diagnostics/ping", diagnosticsHandler.PingAsset)
+		r.Post("/api/diagnostics/port-check", diagnosticsHandler.PortCheck)
+
+		// Webhooks & Integrations
+		r.Post("/api/webhooks/test", webhookHandler.TestWebhook)
 
 		// Admin Routes
 		r.Group(func(r chi.Router) {
