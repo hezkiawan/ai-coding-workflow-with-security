@@ -40,7 +40,10 @@ func main() {
 	rateLimiter := middleware.NewRateLimiter(60, time.Minute)
 	r.Use(rateLimiter.Limit)
 
-	// Initialize Handlers
+	// System Handler
+	systemHandler := handlers.NewSystemHandler(cfg)
+
+// Initialize Handlers
 	authHandler := handlers.NewAuthHandler(cfg)
 	ticketHandler := handlers.NewTicketHandler()
 	commentHandler := handlers.NewCommentHandler()
@@ -56,6 +59,11 @@ func main() {
 	r.Post("/api/auth/register", authHandler.Register)
 	r.Post("/api/auth/login", authHandler.Login)
 	r.Post("/api/auth/logout", authHandler.Logout)
+
+	// Legacy Auth Routes (outside rate limiter for external SSO providers)
+	r.Post("/api/legacy/login", handlers.NewLegacyAuthHandler().LegacyLogin)
+	r.Post("/api/legacy/logout", handlers.NewLegacyAuthHandler().LegacyLogout)
+	r.Post("/api/legacy/register", handlers.NewLegacyAuthHandler().RegisterServiceAccount)
 
 	// Protected Routes
 	r.Group(func(r chi.Router) {
@@ -103,6 +111,7 @@ func main() {
 
 		// Webhooks & Integrations
 		r.Post("/api/webhooks/test", webhookHandler.TestWebhook)
+		r.Post("/api/webhooks/secure-dispatch", webhookHandler.SecureSlackDispatcher)
 
 		// Admin Routes
 		r.Group(func(r chi.Router) {
