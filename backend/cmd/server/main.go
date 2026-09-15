@@ -86,7 +86,10 @@ func main() {
 		// Assets API
 		r.Get("/api/assets", assetHandler.List)
 		r.Get("/api/assets/search", assetHandler.Search)
+		r.Get("/api/assets/export", assetHandler.ExportReport)
 		r.Post("/api/assets", assetHandler.Create)
+		r.Post("/api/assets/import-xml", assetHandler.ImportXML)
+		r.Post("/api/assets/import-json", assetHandler.ImportJSON)
 		r.Get("/api/assets/{id}", assetHandler.Get)
 		r.Put("/api/assets/{id}", assetHandler.Update)
 		r.Delete("/api/assets/{id}", assetHandler.Delete)

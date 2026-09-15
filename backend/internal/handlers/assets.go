@@ -235,12 +235,6 @@ func (h *AssetHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AssetHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	claims := middleware.GetCurrentUser(r)
-	if claims == nil || claims.Role != models.RoleAdmin {
-		utils.Error(w, http.StatusForbidden, "Admin role required to delete assets")
-		return
-	}
-
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
