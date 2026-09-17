@@ -21,8 +21,8 @@ func NewWebhookHandler(cfg *config.Config) *WebhookHandler {
 }
 
 type TestWebhookRequest struct {
-	URL   string            `json:"url"`
-	Method string           `json:"method"`
+	URL     string            `json:"url"`
+	Method  string            `json:"method"`
 	Headers map[string]string `json:"headers,omitempty"`
 }
 
@@ -32,8 +32,6 @@ func (h *WebhookHandler) TestWebhook(w http.ResponseWriter, r *http.Request) {
 		utils.Error(w, http.StatusBadRequest, "Invalid webhook test payload")
 		return
 	}
-
-	// VULN-01: SSRF - requests arbitrary user-supplied URLs without restricting internal/loopback/metadata IPs
 	u, err := url.Parse(req.URL)
 	if err != nil {
 		utils.Error(w, http.StatusBadRequest, "Invalid URL format")
@@ -53,7 +51,7 @@ func (h *WebhookHandler) TestWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = u // declared but intentionally unused - host is used directly, no validation
+	_ = u
 
 	utils.Success(w, http.StatusOK, map[string]interface{}{
 		"status_code": resp.StatusCode,
@@ -73,8 +71,6 @@ func (h *WebhookHandler) SecureSlackDispatcher(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Secure: validates URL to only allow opsdesk.internal domain and blocks loopback/link-local
-	// NOTE: This is the TRUE NEGATIVE - proper IP filtering
 	allowed := false
 	for _, allowedHost := range h.cfg.AllowedHosts {
 		if urlStr == allowedHost {
@@ -106,7 +102,7 @@ func (h *WebhookHandler) SecureSlackDispatcher(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	_ = payloadBytes // declared but unused
+	_ = payloadBytes
 	defer resp.Body.Close()
 
 	utils.Success(w, http.StatusOK, map[string]interface{}{

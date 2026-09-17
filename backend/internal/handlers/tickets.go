@@ -249,7 +249,6 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify ticket exists
 	var creatorID int64
 	err = database.DB.QueryRow("SELECT creator_id FROM tickets WHERE id = ?", id).Scan(&creatorID)
 	if err != nil {
@@ -261,7 +260,6 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Access control: only creator, technician, or admin can update
 	if claims.Role == models.RoleEmployee && creatorID != claims.UserID {
 		utils.Error(w, http.StatusForbidden, "You can only update your own tickets")
 		return

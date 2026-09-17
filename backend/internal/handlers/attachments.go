@@ -46,7 +46,6 @@ func (h *AttachmentHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify ticket exists
 	var creatorID int64
 	err = database.DB.QueryRow("SELECT creator_id FROM tickets WHERE id = ?", ticketID).Scan(&creatorID)
 	if err != nil {
@@ -76,7 +75,6 @@ func (h *AttachmentHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Safe unique filename generation
 	randomBytes := make([]byte, 16)
 	_, _ = rand.Read(randomBytes)
 	safeExt := strings.ToLower(filepath.Ext(header.Filename))
@@ -270,7 +268,6 @@ func (h *AttachmentHandler) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clean safe path resolution
 	safeBase := filepath.Clean(h.cfg.UploadDir)
 	targetPath := filepath.Join(safeBase, filepath.Base(a.FilePath))
 
